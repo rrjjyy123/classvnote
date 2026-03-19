@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClassVNote Web — AI 수업 분석</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+    :root {
+      /* Default Light Theme (Matches Screenshot) */
+      --bg: #f3f6f9;
+      --bg-card: #ffffff;
+      --bg-sidebar: #ebf1f7;
+      --bg-input: #ffffff;
+      --accent: #2196f3;
+      --accent-hover: #1976d2;
+      --accent-dim: rgba(33, 150, 243, 0.1);
+      --txt: #333333;
+      --txt-dim: #666666;
+      --txt-muted: #999999;
+      --bdr: #dae1e7;
+      --bdr-focus: #2196f3;
+      --ok: #22c55e;
+      --err: #ef4444;
+      --warn: #eab308;
+      --r: 10px;
+      --shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f1117;
+      --bg-card: #1a1d27;
+      --bg-sidebar: #14161e;
+      --bg-input: #14161e;
+      --accent: #f97316;
+      --accent-hover: #fb923c;
+      --accent-dim: rgba(249, 115, 22, 0.15);
+      --txt: #e8eaed;
+      --txt-dim: #9ca3af;
+      --txt-muted: #6b7280;
+      --bdr: #2d3148;
+      --bdr-focus: #f97316;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      transition: background 0.3s, color 0.3s;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--bdr);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+
+    .topbar h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .topbar-r {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    /* ── Components ── */
+    .folder-chip {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.75rem;
+      color: var(--txt-dim);
+      padding: 6px 14px;
+      background: var(--bg);
+      border: 1px solid var(--bdr);
+      border-radius: 20px;
+    }
+
+    .folder-chip .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--err);
+    }
+
+    .folder-chip.on .dot {
+      background: var(--ok);
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.82rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .btn-p {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-s {
+      background: var(--bg);
+      color: var(--txt);
+      border: 1px solid var(--bdr);
+    }
+
+    .btn-d {
+      background: rgba(239, 68, 68, 0.08);
+      color: var(--err);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .btn-sm {
+      padding: 5px 10px;
+      font-size: 0.75rem;
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--bdr);
+      padding: 0 20px;
+    }
+
+    .tab {
+      padding: 12px 20px;
+      border: none;
+      background: none;
+      color: var(--txt-dim);
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: 0.2s;
+    }
+
+    .tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* ── Main ── */
+    .main {
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: none;
+    }
+
+    .main.active {
+      display: block;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 20px;
+    }
+
+    @media(max-width:900px) {
+      .split {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ── Sidebar/Calendar ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      padding: 15px;
+      margin-bottom: 15px;
+      overflow: hidden;
+    }
+
+    .card-h {
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card-h h3 {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--txt-dim);
+    }
+
+    /* Simple Calendar UI */
+    .cal-w {
+      width: 100%;
+    }
+
+    .cal-h {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      background: var(--accent);
+      color: white;
+      padding: 8px;
+      border-radius: 6px;
+    }
+
+    .cal-month {
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .cal-btn {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      padding: 2px 8px;
+      font-weight: bold;
+    }
+
+    .cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-size: 0.8rem;
+    }
+
+    .cal-day-label {
+      color: var(--txt-muted);
+      padding: 5px 0;
+      font-weight: 700;
+    }
+
+    .cal-day-label:first-child {
+      color: var(--err);
+    }
+
+    .cal-day-label:last-child {
+      color: var(--accent);
+    }
+
+    .cal-date {
+      padding: 8px 2px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: 0.15s;
+      position: relative;
+    }
+
+    .cal-date:hover {
+      background: var(--bg);
+    }
+
+    .cal-date.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .cal-date.sel {
+      background: var(--accent) !important;
+      color: white !important;
+      font-weight: 700;
+    }
+
+    .cal-date.has-data::after {
+      content: '';
+      position: absolute;
+      bottom: 3px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .cal-date.sun {
+      color: var(--err);
+    }
+
+    .cal-date.sat {
+      color: var(--accent);
+    }
+
+    .cal-date.other {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    /* ── Search ── */
+    .search-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .search-row input {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--bdr);
+      border-radius: 6px;
+      background: var(--bg-input);
+      color: var(--txt);
+      font-size: 0.85rem;
+      outline: none;
+    }
+
+    /* ── List ── */
+    .flist {
+      list-style: none;
+    }
+
+    .flist li {
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 4px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: 0.1s;
+      border: 1px solid transparent;
+    }
+
+    .flist li:hover {
+      background: var(--accent-dim);
+    }
+
+    .flist li.sel {
+      background: white;
+      border-color: var(--bdr);
+      box-shadow: var(--shadow);
+    }
+
+    [data-theme="dark"] .flist li.sel {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+    }
+
+    .flist .name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-weight: 500;
+    }
+
+    .flist .meta {
+      font-size: 0.7rem;
+      color: var(--txt-muted);
+    }
+
+    /* ── Content Details ── */
+    .detail-h {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 15px 0 8px;
+      border-left: 4px solid var(--accent);
+      padding-left: 10px;
+    }
+
+    .detail-h h4 {
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--txt-dim);
+    }
+
+    .txt-box {
+      background: var(--bg-card);
+      border: 1px solid var(--bdr);
+      border-radius: var(--r);
+      padding: 15px;
+      font-size: 0.86rem;
+      line-height: 1.7;
+      min-height: 100px;
+      max-height: 400px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .txt-box:focus {
+      border-color: var(--accent);
+    }
+
+    mark {
+      background: #fff3cd;
+      color: #333;
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* ── Audio ── */
+    audio {
+      width: 100%;
+      height: 40px;
+      margin-top: 10px;
+      border-radius: 6px;
+      background: var(--bg);
+    }
+
+    /* ── Modals ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 25px;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+      border: 1px solid var(--bdr);
+    }
+
+    .modal h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-body {
+      margin: 15px 0;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    /* ── Toggle Switch ── */
+    .theme-toggle {
+      position: relative;
+      width: 46px;
+      height: 24px;
+      border-radius: 20px;
+      background: var(--bdr);
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .theme-toggle::after {
+      content: '☀️';
+      position: absolute;
+      left: 2px;
+      top: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      transition: 0.3s;
+    }
+
+    [data-theme="dark"] .theme-toggle {
+      background: var(--accent);
+    }
+
+    [data-theme="dark"] .theme-toggle::after {
+      content: '🌙';
+      left: 24px;
+    }
+
+    /* ── Toasts ── */
+    .toast-container {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      z-index: 300;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      padding: 10px 20px;
+      color: white;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      animation: toast-in 0.3s ease;
+      box-shadow: var(--shadow);
+    }
+
+    @keyframes toast-in {
+      from {
+        transform: translateX(50px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .toast.ok {
+      background: var(--ok);
+    }
+
+    .toast.err {
+      background: var(--err);
+    }
+
+    .toast.info {
+      background: var(--accent);
+    }
+
+    .spinner {
+      width: 12px;
+      height: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* AI Chat Markdown Styling */
+    .chat-md p { margin: 0 0 10px 0; }
+    .chat-md p:last-child { margin: 0; }
+    .chat-md h1, .chat-md h2, .chat-md h3, .chat-md h4 { margin: 15px 0 10px 0; font-size: 1.05rem; color: var(--accent); }
+    .chat-md table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 0.8rem; }
+    .chat-md th, .chat-md td { border: 1px solid var(--bdr); padding: 8px; text-align: left; }
+    .chat-md th { background: var(--bg-sidebar); font-weight: 600; }
+    .chat-md ul, .chat-md ol { margin: 0 0 10px 0; padding-left: 20px; }
+    .chat-md hr { border: 0; border-top: 1px solid var(--bdr); margin: 15px 0; }
+    .chat-md strong { font-weight: 600; color: var(--accent); }
+    .chat-md blockquote { border-left: 3px solid var(--accent); margin: 10px 0; padding-left: 10px; color: var(--txt-muted); }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+
+<body data-theme="light">
+
+  <div class="topbar">
+    <h1 style="cursor:pointer;" onclick="window.scrollTo({top:0, behavior:'smooth'})" title="최상단으로 이동">📋 ClassVNote Web
+    </h1>
+    <div class="topbar-r">
+      <div class="folder-chip" id="folderChip"><span class="dot"></span><span id="folderName">폴더 미연결</span></div>
+      <div class="theme-toggle" onclick="toggleTheme()" title="테마 전환"></div>
+      <button class="btn btn-s btn-sm" onclick="openSettings()">⚙️ 설정</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-id="analysis" onclick="switchMainTab(this)">🤖 AI 분석</button>
+    <button class="tab" data-id="records" onclick="switchMainTab(this)">📖 기록 보기</button>
+    <button class="tab" data-id="chatbot" onclick="switchMainTab(this)">💬 AI 수업 장학</button>
+  </div>
+
+  <!-- AI Analysis Panel -->
+  <div class="main active" id="tab-analysis">
+    <div class="card">
+      <div class="card-h">
+        <h3>미처리 녹음 파일</h3>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-s btn-sm" onclick="scanPendingFiles()">🔄 새로고침</button>
+          <button class="btn btn-p btn-sm" id="btnBatchStt" onclick="batchStt()" disabled>▶ 전체 분석</button>
+        </div>
+      </div>
+      <ul class="flist" id="pendingList"></ul>
+      <div id="pendingEmpty" style="padding:40px; text-align:center; color:var(--txt-muted); display:none;">
+        <p>분석할 새 파일이 없습니다. ✨</p>
+      </div>
+    </div>
+
+    <div class="card" id="procCard" style="display:none">
+      <div class="card-h">
+        <h3>진행 상황</h3><span id="procStatus" style="font-size:0.8rem;color:var(--accent)"></span>
+      </div>
+      <div style="height:6px; background:var(--bg); border-radius:3px; overflow:hidden; margin:8px 0;">
+        <div id="procBar" style="width:0; height:100%; background:var(--accent); transition:0.3s;"></div>
+      </div>
+      <div id="procLogs" style="font-size:0.75rem; color:var(--txt-dim); max-height:100px; overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- Records Panel -->
+  <div class="main" id="tab-records">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="🔍 전사 내용 또는 요약 키워드 검색..."
+        onkeydown="if(event.key==='Enter')performSearch()">
+      <button class="btn btn-p" onclick="performSearch()">검색</button>
+      <button class="btn btn-s" onclick="resetSearch()">초기화</button>
+    </div>
+
+    <div class="split">
+      <!-- Sidebar -->
+      <div class="side-col">
+        <div class="card" style="padding:10px">
+          <div class="cal-w" id="calendar"></div>
+        </div>
+        <div class="card">
+          <div class="card-h">
+            <h3>녹음 목록</h3>
+          </div>
+          <ul class="flist" id="recordList"></ul>
+          <div id="recordEmpty" style="padding:20px; text-align:center; color:var(--txt-muted); font-size:0.8rem;">날짜를
+            선택해 주세요.</div>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="detail-col">
+        <div class="detail-h">
+          <h4>📜 전사 내용</h4>
+          <button class="btn btn-s btn-sm" id="btnEditTrans" onclick="toggleEdit('transcript')" style="display:none">✏️
+            수정</button>
+        </div>
+        <div class="txt-box" id="viewTrans" placeholder="전사 내용이 여기에 표시됩니다."></div>
+
+        <div class="detail-h">
+          <h4>💡 요약 및 키워드</h4>
+          <button class="btn btn-s btn-sm" id="btnEditSumm" onclick="toggleEdit('summary')" style="display:none">✏️
+            수정</button>
+        </div>
+        <div class="txt-box" id="viewSumm" placeholder="요약 내용이 여기에 표시됩니다."></div>
+
+        <div class="detail-h">
+          <h4>🔊 녹음 듣기</h4>
+        </div>
+        <div id="audioWrap"></div>
+
+        <div style="display:flex; gap:10px; margin-top:20px; border-top:1px solid var(--bdr); padding-top:15px;">
+          <button class="btn btn-p btn-sm" id="btnRecAnalyze" onclick="analyzeSelectedRecord()"
+            style="display:none;">🎙️ AI 재분석</button>
+          <button class="btn btn-d btn-sm" id="btnRecDelete" onclick="openDeleteModal()" style="display:none;">🗑️ 선택 파일
+            삭제</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RAG Chatbot Panel -->
+  <div class="main" id="tab-chatbot">
+    <div class="split" style="height: 70vh;">
+      <!-- Sidebar (Selection) -->
+      <div class="side-col" style="display:flex; flex-direction:column; gap:15px; height:100%;">
+        <div class="card" style="margin:0;">
+          <div class="card-h">
+            <h3>분석 대상 데이터 필터</h3>
+          </div>
+          <div style="font-size:0.8rem; margin-bottom:10px; color:var(--txt-dim);">
+            <label style="display:block; margin-bottom:5px;">검색어 (선택)</label>
+            <input type="text" id="chatSearchInput" placeholder="단원명, 키워드, 날짜 등"
+              style="width:100%; padding:6px; border:1px solid var(--bdr); border-radius:4px; margin-bottom:10px; background:var(--bg-input); color:var(--txt);"
+              onkeydown="if(event.key==='Enter') loadChatbotRecords()">
+
+            <label style="display:block; margin-bottom:5px;">기간 필터 (선택)</label>
+            <div style="display:flex; gap:5px; margin-bottom:10px;">
+              <input type="date" id="chatStartDate"
+                style="flex:1; padding:6px; border:1px solid var(--bdr); border-radius:4px; background:var(--bg-input); color:var(--txt);">
+              <span style="display:flex; align-items:center;">~</span>
+              <input type="date" id="chatEndDate"
+                style="flex:1; padding:6px; border:1px solid var(--bdr); border-radius:4px; background:var(--bg-input); color:var(--txt);">
+            </div>
+
+            <button class="btn btn-p btn-sm" style="width:100%; justify-content:center;"
+              onclick="loadChatbotRecords()">데이터 불러오기</button>
+          </div>
+          <div style="font-size:0.8rem; color:var(--txt-dim); border-top:1px solid var(--bdr); padding-top:10px;">
+            <label style="display:block; margin-bottom:5px;">기록 내용 포함 제어</label>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+              <label><input type="radio" name="chatContextType" value="txt" checked> 내 발화 원본 (.txt)</label>
+              <label><input type="radio" name="chatContextType" value="summary"> AI 핵심 요약본 (_summary)</label>
+              <label><input type="radio" name="chatContextType" value="both"> 원본 + 요약본 (토큰 주의)</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1; display:flex; flex-direction:column; margin:0; padding-bottom:0px;">
+          <div class="card-h" style="cursor:pointer;"
+            onclick="const list = document.getElementById('chatRecordListWrapper'); const btn = document.getElementById('chatListToggleBtn'); if(list.style.display === 'none') { list.style.display = 'flex'; btn.textContent = '접기'; } else { list.style.display = 'none'; btn.textContent = '펼치기'; }">
+            <h3>불러온 기록 <span id="chatRecordCount"
+                style="font-weight:normal; font-size:0.75rem; color:var(--txt-muted);"></span></h3>
+            <span id="chatListToggleBtn" style="font-size:0.8rem; color:var(--accent);">접기</span>
+          </div>
+          <div id="chatRecordListWrapper" style="display:flex; flex-direction:column; flex:1; overflow:hidden;">
+            <div style="font-size:0.75rem; margin-bottom:8px; display:flex; gap:10px;">
+              <a href="#" onclick="selectAllChatRecords(true); return false;"
+                style="color:var(--accent); text-decoration:none;">전체 선택</a>
+              <a href="#" onclick="selectAllChatRecords(false); return false;"
+                style="color:var(--txt-muted); text-decoration:none;">전체 해제</a>
+            </div>
+            <div id="chatRecordList"
+              style="flex:1; overflow-y:auto; border-top:1px solid var(--bdr); padding-top:10px; font-size:0.85rem; display:flex; flex-direction:column; gap:6px;">
+              <div style="text-align:center; color:var(--txt-muted); font-size:0.8rem; padding:20px;">'데이터 불러오기'를 눌러주세요.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chat UI -->
+      <div class="detail-col card" style="display:flex; flex-direction:column; margin:0; padding:0;">
+        <div style="padding:15px; border-bottom:1px solid var(--bdr); background:var(--bg);">
+          <h3 style="margin:0; font-size:0.9rem; color:var(--txt);">AI 수업 장학 채팅</h3>
+          <p style="margin:5px 0 0 0; font-size:0.75rem; color:var(--txt-muted);">좌측에서 선택된 기록들을 바탕으로 선생님의 수업에 대한 맞춤형
+            피드백을 제공합니다.</p>
+        </div>
+        <div id="chatMessages"
+          style="flex:1; overflow-y:auto; padding:15px; display:flex; flex-direction:column; gap:15px; background:var(--bg-input);">
+          <div
+            style="align-self:flex-start; background:var(--bg-card); border:1px solid var(--bdr); padding:10px 15px; border-radius:12px; border-bottom-left-radius:0; max-width:85%; font-size:0.85rem; line-height:1.5;">
+            안녕하세요! 기록 폴더를 연결하시고, 좌측에서 대화 주제로 삼을 <b>수업 기록 데이터</b>를 체크해주세요. 그 후 궁금한 점을 편하게 질문해 보세요.
+          </div>
+        </div>
+        <div
+          style="padding:10px 15px; border-top:1px solid var(--bdr); background:var(--bg); display:flex; gap:8px; overflow-x:auto; white-space:nowrap;">
+          <span style="font-size:0.75rem; color:var(--txt-muted); display:flex; align-items:center;">💡 추천 질문:</span>
+          <button class="btn btn-s btn-sm"
+            onclick="document.getElementById('chatInput').value='이 수업들에서 교사가 사용한 발문 중 \'닫힌 질문(단답형)\'과 \'열린 질문(사고력 유도)\'의 비율과 특징을 분석하고, 학생들의 확산적 사고를 촉진하기 위해 어떻게 발문을 개선하면 좋을지 제안해 주세요.'; document.getElementById('chatInput').focus();">발문(질문)
+            유형 분석</button>
+          <button class="btn btn-s btn-sm"
+            onclick="document.getElementById('chatInput').value='학생들의 대답이나 오개념에 대해 교사가 어떻게 수용하고 피드백을 주었는지 분석해 주세요. 무의식적인 억양이나 습관적인 수용 외에 구체적으로 어떤 피드백 방식을 늘리면 좋을까요?'; document.getElementById('chatInput').focus();">상호작용
+            및 피드백 분석</button>
+          <button class="btn btn-s btn-sm"
+            onclick="document.getElementById('chatInput').value='새로운 개념이나 핵심 내용을 설명할 때, 학생의 눈높이에 맞춘 적절한 예시나 비유가 사용되었는지 분석해 주세요. 장황하거나 학생들이 이해하기 어려웠을 다소 어려운 어휘나 표현이 있었다면 짚어주세요.'; document.getElementById('chatInput').focus();">설명의
+            명료성 분석</button>
+          <button class="btn btn-s btn-sm"
+            onclick="document.getElementById('chatInput').value='위의 수업 기록들을 종합적인 수업 장학 관점에서 평가해 주세요. 내가 가진 수업 진행의 가장 큰 강점 2가지와, 다음 수업을 위해 의식적으로 개선해 볼 만한 행동 목표 2가지를 제시해 주세요.'; document.getElementById('chatInput').focus();">수업
+            종합 성찰 조언</button>
+          <button class="btn btn-s btn-sm"
+            onclick="document.getElementById('chatInput').value='선택한 수업의 전사 기록을 바탕으로 실제 진행된 수업 흐름에 따른 교수학습과정안(지도안)을 역으로 작성해 주세요. 명시적이고 구체적인 활동 내용을 포함해 주세요.'; document.getElementById('chatInput').focus();">지도안
+            초안 작성</button>
+        </div>
+        <div style="padding:15px; border-top:1px solid var(--bdr); background:var(--bg-card); display:flex; gap:10px;">
+          <textarea id="chatInput" placeholder="질문을 입력하세요... (예: 선택한 수업들 중에 내가 학생들 칭찬을 많이 한 수업은 어느 거야?)"
+            style="flex:1; resize:none; padding:10px; border:1px solid var(--bdr); border-radius:8px; height:60px; font-family:inherit; font-size:0.85rem; background:var(--bg-input); color:var(--txt);"
+            onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendChatMessage(); }"></textarea>
+          <button class="btn btn-p" onclick="sendChatMessage()" style="height:60px; padding:0 20px;">전송</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="modalSettings">
+    <div class="modal">
+      <h2>⚙️ 환경 설정</h2>
+      <div style="margin-bottom:20px; padding-bottom:15px; border-bottom:1px solid var(--bdr);">
+        <label style="display:block; font-size:0.75rem; color:var(--txt-dim); margin-bottom:8px;">데이터 저장 폴더</label>
+        <button class="btn btn-p" style="width:100%; justify-content:center;" onclick="connectFolder()">📁 폴더
+          연결하기</button>
+        <p style="font-size:0.7rem; color:var(--txt-muted); margin-top:6px; text-align:center;">ClassVNote의 녹음 파일이 저장되는
+          폴더를 선택하세요.</p>
+      </div>
+      <div style="margin-bottom:15px">
+        <label style="display:block; font-size:0.75rem; color:var(--txt-dim); margin-bottom:5px;">Gemini API Key</label>
+        <input type="password" id="inputApiKey"
+          style="width:100%; padding:8px; border:1px solid var(--bdr); border-radius:6px; background:var(--bg-input); color:var(--txt);">
+      </div>
+      <div style="margin-bottom:15px">
+        <label style="display:block; font-size:0.75rem; color:var(--txt-dim); margin-bottom:5px;">AI 모델</label>
+        <input type="text" id="inputModel" list="modelOptions"
+          style="width:100%; padding:8px; border:1px solid var(--bdr); border-radius:6px; background:var(--bg-input); color:var(--txt);"
+          placeholder="모델명을 입력하거나 선택하세요">
+        <datalist id="modelOptions">
+          <option value="gemini-3-flash-preview">gemini-3-flash-preview</option>
+          <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview</option>
+          <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+        </datalist>
+        <button class="btn btn-s btn-sm" style="margin-top:8px; font-weight:400;"
+          onclick="window.open('https://ai.google.dev/gemini-api/docs/models?hl=ko', '_blank')">📖 모델 정보</button>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-s" onclick="closeModal('modalSettings')">취소</button>
+        <button class="btn btn-p" onclick="saveSettings()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Modal -->
+  <div class="modal-overlay" id="modalDelete">
+    <div class="modal">
+      <h2>🗑️ 파일 삭제</h2>
+      <p style="font-size:0.85rem; color:var(--txt-dim); margin-bottom:15px;">삭제할 항목을 선택해 주세요.</p>
+      <div class="modal-body">
+        <label class="checkbox-row"><input type="checkbox" id="delCheckWav" checked> 🔊 음원 파일</label>
+        <label class="checkbox-row"><input type="checkbox" id="delCheckTxt" checked> 📜 전사 파일 (.txt)</label>
+        <label class="checkbox-row"><input type="checkbox" id="delCheckSum" checked> 💡 요약 파일 (_summary.txt)</label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-s" onclick="closeModal('modalDelete')">취소</button>
+        <button class="btn btn-p" onclick="confirmDelete()">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast-container" id="toasts"></div>
+
+  <script>
+    // ════════════════════════════════════════════════════════════
+    // Persistence & Initial State
+    // ════════════════════════════════════════════════════════════
+    let dirHandle = null;
+    let currentPending = [];
+    let isBusy = false;
+    let calY, calM, calSelectedDate;
+    let recordItems = [];
+    let selectedRecordIdx = -1;
+    let searchActive = false;
+    let dateEntries = new Set();
+    const AUDIO_EXTS = ['.wav', '.mp3'];
+
+    function getAudioExt(name) {
+      const ext = name.slice((name.lastIndexOf(".") - 1 >>> 0) + 2);
+      return AUDIO_EXTS.includes('.' + ext) ? '.' + ext : '';
+    }
+
+    function findAudioInList(names, base) {
+      for (const ext of AUDIO_EXTS) {
+        if (names.includes(base + ext)) return base + ext;
+      }
+      return null;
+    }
+
+    function getMimeType(fileName) {
+      return fileName.endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+    }
+
+    // Removed duplicate helper functions
+
+    const API_BASE = 'https://generativelanguage.googleapis.com';
+
+    // ── IndexedDB for Folder Handle ──
+    async function openDB() { return new Promise((res, rej) => { const rq = indexedDB.open('cvn_web', 1); rq.onupgradeneeded = () => rq.result.createObjectStore('kv'); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
+    async function kvSet(k, v) { const db = await openDB(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); }); }
+    async function kvGet(k) { const db = await openDB(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readonly'); const rq = tx.objectStore('kv').get(k); rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error); }); }
+
+    // ── Initialization ──
+    window.onload = async () => {
+      const savedTheme = localStorage.getItem('cvn_theme') || 'light';
+      document.body.setAttribute('data-theme', savedTheme);
+
+      const now = new Date();
+      calY = now.getFullYear(); calM = now.getMonth();
+      calSelectedDate = fmtDate(now);
+
+      autoRestoreFolder();
+    };
+
+    function toggleTheme() {
+      const cur = document.body.getAttribute('data-theme');
+      const next = cur === 'light' ? 'dark' : 'light';
+      document.body.setAttribute('data-theme', next);
+      localStorage.setItem('cvn_theme', next);
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Folder Management
+    // ════════════════════════════════════════════════════════════
+    async function connectFolder() {
+      try {
+        dirHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        await kvSet('dirHandle', dirHandle);
+        onConnected();
+        closeModal('modalSettings');
+      } catch (e) { if (e.name !== 'AbortError') showToast('폴더 연결 오류', 'err'); }
+    }
+
+    async function autoRestoreFolder() {
+      try {
+        const handle = await kvGet('dirHandle');
+        if (!handle) return;
+        if (await handle.queryPermission({ mode: 'readwrite' }) === 'granted') {
+          dirHandle = handle;
+          onConnected();
+        } else {
+          // Show hint to user to re-enable
+          showToast('이전에 연결된 폴더가 있습니다. [폴더 연결]을 눌러 권한을 승인하세요.', 'info');
+        }
+      } catch (e) { }
+    }
+
+    async function onConnected() {
+      document.getElementById('folderChip').classList.add('on');
+      document.getElementById('folderName').textContent = dirHandle.name;
+      showToast(`📁 "${dirHandle.name}" 연결됨`, 'ok');
+      await refreshDateEntries();
+      scanPendingFiles();
+      renderCalendar();
+    }
+
+    async function refreshDateEntries() {
+      dateEntries.clear();
+      if (!dirHandle) return;
+      for await (const e of dirHandle.values()) {
+        if (e.kind === 'directory' && /^\d{4}-\d{2}-\d{2}$/.test(e.name)) dateEntries.add(e.name);
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // AI Analysis Scan
+    // ════════════════════════════════════════════════════════════
+    async function scanPendingFiles() {
+      if (!dirHandle) return;
+      currentPending = [];
+      try {
+        const dates = Array.from(dateEntries).sort();
+        for (const d of dates) {
+          const dh = await dirHandle.getDirectoryHandle(d);
+          const names = [];
+          for await (const e of dh.values()) if (e.kind === 'file') names.push(e.name);
+
+          for (const n of names) {
+            const ext = getAudioExt(n);
+            if (ext && !names.includes(n.replace(ext, '.txt'))) {
+              currentPending.push({ date: d, name: n, dh, status: 'pending' });
+            }
+          }
+        }
+        renderPendingList();
+      } catch (e) { showToast('스캔 오류', 'err'); }
+    }
+
+    function renderPendingList() {
+      const ul = document.getElementById('pendingList');
+      const empty = document.getElementById('pendingEmpty');
+      ul.innerHTML = '';
+      if (currentPending.length === 0) {
+        empty.style.display = 'block';
+        document.getElementById('btnBatchStt').disabled = true;
+        return;
+      }
+      empty.style.display = 'none';
+      document.getElementById('btnBatchStt').disabled = isBusy;
+
+      currentPending.forEach((f, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="name">📄 ${f.date} / ${f.name}</span>
+      <span style="font-size:0.7rem; color:var(--accent)">${f.status === 'pending' ? '대기' : f.status === 'proc' ? '분석중…' : '완료'}</span>
+      ${f.status === 'pending' ? `<button class="btn btn-p btn-sm" onclick="processSingle(${i})">분석</button>` : ''}`;
+        ul.appendChild(li);
+      });
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Gemini API Integration
+    // ════════════════════════════════════════════════════════════
+    const AI_PROMPT = `You are an expert AI assistant for a teacher.
+
+Task 1: Transcribe the audio (Speech-to-Text) in Korean.
+
+**CRITICAL RULES**:
+1. **NO HALLUCINATIONS**: If the audio contains no speech, silence, or background noise only, DO NOT INVENT TEXT.
+2. **Handling Silence/Noise**: If the entire audio has no clear speech, return exactly "대화 내용 없음 (음소거 또는 소음)".
+
+**Formatting Rules for Task 1**:
+- Group the transcript into natural paragraph units based on topic or speaker change.
+- Do NOT split every single sentence into a separate line.
+- Start each paragraph with the speaker label and timestamp, like: "참석자 1 MM:SS"
+- Leave a blank line between paragraphs.
+- If multiple speakers exist, label them as 참석자 1, 참석자 2, etc.
+- If only one speaker, just use the timestamp.
+
+Task 2: Summarize the content into 3 sections:
+  1. [수업 내용] (Class Content)
+  2. [생활 지도] (Guidance/Conflicts)
+  3. [특이 사항] (Special Notes/Safety Issues)
+
+Task 3: Extract 5 key keywords from the content as hashtags (e.g. #Math #Consulting).
+
+Output Format:
+---TRANSCRIPT_START---
+(Write the formatted transcript here)
+---TRANSCRIPT_END---
+
+---KEYWORDS_START---
+(Write keywords here, e.g. #Math #StudentName)
+---KEYWORDS_END---
+
+---SUMMARY_START---
+(Write the summary here)
+---SUMMARY_END---`;
+
+    async function callGemini(dh, fileName) {
+      const key = localStorage.getItem('cvn_key');
+      const mod = localStorage.getItem('cvn_mod') || 'gemini-3-flash-preview';
+      if (!key) throw new Error('API 키를 설정해 주세요.');
+
+      const fh = await dh.getFileHandle(fileName);
+      const file = await fh.getFile();
+      const mimeType = getMimeType(fileName);
+
+      // 1. Upload
+      const up = await fetch(`${API_BASE}/upload/v1beta/files?key=${key}`, {
+        method: 'POST', headers: { 'X-Goog-Upload-Protocol': 'resumable', 'X-Goog-Upload-Command': 'start', 'X-Goog-Upload-Header-Content-Length': file.size, 'X-Goog-Upload-Header-Content-Type': mimeType, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file: { displayName: fileName } })
+      });
+      const upUrl = up.headers.get('X-Goog-Upload-URL');
+      const upRes = await fetch(upUrl, { method: 'PUT', headers: { 'Content-Length': file.size, 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' }, body: file });
+      const upData = await upRes.json();
+      const remoteName = upData.file.name;
+
+      // 2. Wait Active
+      let ready = false;
+      for (let i = 0; i < 100; i++) {
+        const r = await fetch(`${API_BASE}/v1beta/${remoteName}?key=${key}`);
+        const d = await r.json();
+        if (d.state === 'ACTIVE') { ready = true; break; }
+        await new Promise(r => setTimeout(r, 2000));
+      }
+      if (!ready) throw new Error('파일 처리 서버 지연');
+
+      // 3. Generate
+      const gen = await fetch(`${API_BASE}/v1beta/models/${mod}:generateContent?key=${key}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ fileData: { mimeType: mimeType, fileUri: upData.file.uri } }, { text: AI_PROMPT }] }] })
+      });
+      if (!gen.ok) {
+        const errBody = await gen.json().catch(() => ({}));
+        console.error('Gemini API Error details:', errBody);
+        throw new Error(`AI 분석 오류 (${gen.status}): ${errBody?.error?.message || '알 수 없는 오류'}`);
+      }
+      const genData = await gen.json();
+      const out = genData.candidates[0].content.parts[0].text;
+
+      // Cleanup
+      fetch(`${API_BASE}/v1beta/${remoteName}?key=${key}`, { method: 'DELETE' }).catch(() => { });
+
+      return parseOutput(out);
+    }
+
+    function parseOutput(raw) {
+      let t = raw.split('---TRANSCRIPT_START---')[1]?.split('---TRANSCRIPT_END---')[0]?.trim() || '';
+      let k = raw.split('---KEYWORDS_START---')[1]?.split('---KEYWORDS_END---')[0]?.trim() || '';
+      let s = raw.split('---SUMMARY_START---')[1]?.split('---SUMMARY_END---')[0]?.trim() || '';
+      if (!t) t = raw;
+      return { transcript: t, summary: k ? `${k}\n\n${s}` : s };
+    }
+
+    async function saveFile(dh, name, text) { const h = await dh.getFileHandle(name, { create: true }); const w = await h.createWritable(); await w.write(text); await w.close(); }
+
+    // ════════════════════════════════════════════════════════════
+    // Execution Logic
+    // ════════════════════════════════════════════════════════════
+    async function processSingle(idx) {
+      if (isBusy) return; isBusy = true;
+      const f = currentPending[idx];
+      f.status = 'proc'; renderPendingList();
+      showLogs(); log(`📤 업로드 및 분석 시작: ${f.name}`);
+      try {
+        const res = await callGemini(f.dh, f.name);
+        const base = f.name.replace(getAudioExt(f.name), '');
+        await saveFile(f.dh, base + '.txt', res.transcript);
+        await saveFile(f.dh, base + '_summary.txt', res.summary);
+        f.status = 'done'; log(`✅ 완료: ${f.name}`);
+        showToast('분석 완료', 'ok');
+      } catch (e) { f.status = 'pending'; log(`❌ 실패: ${e.message}`); showToast('분석 실패', 'err'); }
+      isBusy = false; renderPendingList();
+    }
+
+    async function batchStt() {
+      if (isBusy) return; isBusy = true;
+      showLogs();
+      const list = currentPending.filter(f => f.status === 'pending');
+      for (let i = 0; i < list.length; i++) {
+        const f = list[i];
+        document.getElementById('procStatus').innerHTML = `<span class="spinner"></span> ${i + 1}/${list.length}`;
+        document.getElementById('procBar').style.width = `${(i / list.length) * 100}%`;
+        f.status = 'proc'; renderPendingList();
+        try {
+          const res = await callGemini(f.dh, f.name);
+          const base = f.name.replace(getAudioExt(f.name), '');
+          await saveFile(f.dh, base + '.txt', res.transcript);
+          await saveFile(f.dh, base + '_summary.txt', res.summary);
+          f.status = 'done'; log(`✅ 완료: ${f.name}`);
+        } catch (e) { f.status = 'pending'; log(`❌ 실패 (${f.name}): ${e.message}`); }
+        renderPendingList();
+      }
+      document.getElementById('procBar').style.width = '100%';
+      document.getElementById('procStatus').textContent = '완료';
+      isBusy = false; showToast('전체 분석 완료', 'ok');
+    }
+
+    function log(m) { const l = document.getElementById('procLogs'); l.innerHTML += `<div>${m}</div>`; l.scrollTop = l.scrollHeight; }
+    function showLogs() { document.getElementById('procCard').style.display = 'block'; document.getElementById('procLogs').innerHTML = ''; }
+
+    // ════════════════════════════════════════════════════════════
+    // Calendar UI
+    // ════════════════════════════════════════════════════════════
+    function renderCalendar() {
+      const cal = document.getElementById('calendar');
+      const dFirst = new Date(calY, calM, 1);
+      const startDay = dFirst.getDay();
+      const daysIn = new Date(calY, calM + 1, 0).getDate();
+      const today = fmtDate(new Date());
+
+      let h = `<div class="cal-h"><button class="cal-btn" onclick="navCal(-1)">◀</button><div class="cal-month">${calY}년 ${calM + 1}월</div><button class="cal-btn" onclick="navCal(1)">▶</button></div>`;
+      h += '<div class="cal-grid">';
+      ['일', '월', '화', '수', '목', '금', '토'].forEach(dn => h += `<div class="cal-day-label">${dn}</div>`);
+
+      for (let i = 0; i < startDay; i++) h += '<div class="cal-date other"></div>';
+      for (let d = 1; d <= daysIn; d++) {
+        const ds = `${calY}-${String(calM + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        let cls = 'cal-date';
+        if (ds === today) cls += ' active';
+        if (ds === calSelectedDate) cls += ' sel';
+        if (dateEntries.has(ds)) cls += ' has-data';
+        const dow = (startDay + d - 1) % 7;
+        if (dow === 0) cls += ' sun'; if (dow === 6) cls += ' sat';
+        h += `<div class="${cls}" onclick="onDateClick('${ds}')">${d}</div>`;
+      }
+      h += '</div>';
+      cal.innerHTML = h;
+    }
+    function navCal(dir) { calM += dir; if (calM < 0) { calM = 11; calY--; } if (calM > 11) { calM = 0; calY++; } renderCalendar(); }
+    async function onDateClick(ds) { calSelectedDate = ds; renderCalendar(); searchActive = false; loadRecordsForDate(ds); }
+
+    // ════════════════════════════════════════════════════════════
+    // Records Management
+    // ════════════════════════════════════════════════════════════
+    async function loadRecordsForDate(ds) {
+      recordItems = []; selectedRecordIdx = -1; clearDetails();
+      if (!dirHandle) return;
+      try {
+        const dh = await dirHandle.getDirectoryHandle(ds);
+        const files = []; for await (const e of dh.values()) if (e.kind === 'file') files.push(e.name);
+        const audioFiles = files.filter(f => getAudioExt(f));
+        const bases = new Set(audioFiles.map(f => f.replace(getAudioExt(f), '')));
+        files.filter(f => f.endsWith('.txt') && !f.endsWith('_summary.txt')).forEach(f => bases.add(f.replace('.txt', '')));
+
+        for (const b of Array.from(bases).sort()) {
+          const audioName = findAudioInList(files, b);
+          recordItems.push({
+            date: ds, base: b, dh,
+            audioName: audioName, hasTxt: files.includes(b + '.txt'), hasSum: files.includes(b + '_summary.txt')
+          });
+        }
+      } catch (e) { }
+      renderRecordList();
+    }
+
+    function renderRecordList() {
+      const ul = document.getElementById('recordList');
+      ul.innerHTML = '';
+      document.getElementById('recordEmpty').style.display = recordItems.length ? 'none' : 'block';
+      recordItems.forEach((r, i) => {
+        const li = document.createElement('li');
+        if (i === selectedRecordIdx) li.className = 'sel';
+        let timeStr = '';
+        let label = r.base;
+        try {
+          const parts = r.base.split('_');
+          if (parts.length >= 2) {
+            const m = parts[1].match(/.{2}/g);
+            if (m && m.length >= 2) timeStr = m.slice(0, 2).join(':');
+          }
+          if (parts.length >= 3) label = parts[2];
+          else if (timeStr) label = '';
+        } catch (e) { }
+        li.innerHTML = `<span class="name">🕐 ${timeStr} ${label}</span><span class="meta">${r.hasTxt ? '📝' : ''} ${r.hasSum ? '💡' : ''}</span>`;
+        li.onclick = () => selectRecord(i);
+        ul.appendChild(li);
+      });
+    }
+
+    let currentAudioUrl = null;
+    async function selectRecord(idx) {
+      selectedRecordIdx = idx; renderRecordList();
+      const r = recordItems[idx];
+      const q = searchActive ? document.getElementById('searchInput').value.trim() : '';
+
+      const tView = document.getElementById('viewTrans');
+      if (r.hasTxt) {
+        const f = await r.dh.getFileHandle(r.base + '.txt'); const fl = await f.getFile();
+        const text = await fl.text(); tView.innerHTML = highlight(esc(text), q);
+        document.getElementById('btnEditTrans').style.display = 'block';
+      } else { tView.textContent = '(전사 데이터 모드 — 재분석 필요)'; document.getElementById('btnEditTrans').style.display = 'none'; }
+
+      const sView = document.getElementById('viewSumm');
+      if (r.hasSum) {
+        const f = await r.dh.getFileHandle(r.base + '_summary.txt'); const fl = await f.getFile();
+        const text = await fl.text(); sView.innerHTML = highlight(esc(text), q);
+        document.getElementById('btnEditSumm').style.display = 'block';
+      } else { sView.textContent = r.hasTxt ? '(요약 정보 없음)' : ''; document.getElementById('btnEditSumm').style.display = 'none'; }
+
+      // Revoke previous audio URL to prevent memory leak
+      if (currentAudioUrl) { URL.revokeObjectURL(currentAudioUrl); currentAudioUrl = null; }
+
+      const aw = document.getElementById('audioWrap');
+      if (r.audioName) {
+        const f = await r.dh.getFileHandle(r.audioName); const fl = await f.getFile();
+        currentAudioUrl = URL.createObjectURL(fl);
+        aw.innerHTML = `<audio controls src="${currentAudioUrl}"></audio>`;
+        document.getElementById('btnRecAnalyze').style.display = 'block';
+      } else { aw.innerHTML = ''; document.getElementById('btnRecAnalyze').style.display = 'none'; }
+
+      document.getElementById('btnRecDelete').style.display = 'block';
+    }
+
+    function clearDetails() {
+      document.getElementById('viewTrans').textContent = '';
+      document.getElementById('viewSumm').textContent = '';
+      document.getElementById('audioWrap').innerHTML = '';
+      ['btnEditTrans', 'btnEditSumm', 'btnRecAnalyze', 'btnRecDelete'].forEach(id => document.getElementById(id).style.display = 'none');
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Editing & Deleting
+    // ════════════════════════════════════════════════════════════
+    let editMode = { transcript: false, summary: false };
+    function toggleEdit(which) {
+      const el = document.getElementById(which === 'transcript' ? 'viewTrans' : 'viewSumm');
+      const btn = document.getElementById(which === 'transcript' ? 'btnEditTrans' : 'btnEditSumm');
+      if (!editMode[which]) {
+        el.contentEditable = 'true'; el.focus(); btn.textContent = '💾 저장'; btn.classList.add('btn-p');
+        editMode[which] = true;
+      } else {
+        saveEdit(which, el.innerText);
+        el.contentEditable = 'false'; btn.textContent = '✏️ 수정'; btn.classList.remove('btn-p');
+        editMode[which] = false;
+      }
+    }
+    async function saveEdit(which, text) {
+      const r = recordItems[selectedRecordIdx];
+      const name = r.base + (which === 'transcript' ? '.txt' : '_summary.txt');
+      try {
+        const h = await r.dh.getFileHandle(name, { create: true }); const w = await h.createWritable(); await w.write(text); await w.close();
+        showToast('저장됨', 'ok');
+      } catch (e) { showToast('저장 실패', 'err'); }
+    }
+
+    function openDeleteModal() {
+      const r = recordItems[selectedRecordIdx];
+      document.getElementById('delCheckWav').checked = !!r.audioName; document.getElementById('delCheckWav').disabled = !r.audioName;
+      document.getElementById('delCheckTxt').checked = r.hasTxt; document.getElementById('delCheckTxt').disabled = !r.hasTxt;
+      document.getElementById('delCheckSum').checked = r.hasSum; document.getElementById('delCheckSum').disabled = !r.hasSum;
+      document.getElementById('modalDelete').classList.add('open');
+    }
+
+    async function confirmDelete() {
+      const r = recordItems[selectedRecordIdx];
+      const wav = document.getElementById('delCheckWav').checked;
+      const txt = document.getElementById('delCheckTxt').checked;
+      const sum = document.getElementById('delCheckSum').checked;
+
+      try {
+        if (wav && r.audioName) await r.dh.removeEntry(r.audioName);
+        if (txt && r.hasTxt) await r.dh.removeEntry(r.base + '.txt');
+        if (sum && r.hasSum) await r.dh.removeEntry(r.base + '_summary.txt');
+
+        closeModal('modalDelete'); showToast('파일 삭제 완료', 'ok');
+        loadRecordsForDate(calSelectedDate);
+        refreshDateEntries().then(renderCalendar);
+      } catch (e) { showToast('삭제 실패', 'err'); }
+    }
+
+    async function analyzeSelectedRecord() {
+      if (selectedRecordIdx < 0 || isBusy) return;
+      const r = recordItems[selectedRecordIdx];
+      if (!r.audioName) return;
+      isBusy = true; showToast('AI 분석 시작...', 'info');
+      try {
+        const res = await callGemini(r.dh, r.audioName);
+        await saveFile(r.dh, r.base + '.txt', res.transcript);
+        await saveFile(r.dh, r.base + '_summary.txt', res.summary);
+        showToast('AI 분석 완료', 'ok');
+        selectRecord(selectedRecordIdx);
+      } catch (e) { showToast('분석 실패: ' + e.message, 'err'); }
+      isBusy = false;
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // Search
+    // ════════════════════════════════════════════════════════════
+    async function performSearch() {
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      if (!q) return resetSearch();
+      if (!dirHandle) return;
+
+      searchActive = true; recordItems = []; selectedRecordIdx = -1; clearDetails();
+      showToast('검색 중...', 'info');
+
+      for (const d of Array.from(dateEntries).sort().reverse()) {
+        const dh = await dirHandle.getDirectoryHandle(d);
+        const files = []; for await (const e of dh.values()) if (e.kind === 'file') files.push(e.name);
+        const txts = files.filter(f => f.endsWith('.txt') && !f.endsWith('_summary.txt'));
+
+        for (const t of txts) {
+          const base = t.replace('.txt', '');
+          let found = false;
+          const fTxt = await dh.getFileHandle(t); const flTxt = await fTxt.getFile();
+          if ((await flTxt.text()).toLowerCase().includes(q)) found = true;
+
+          if (!found && files.includes(base + '_summary.txt')) {
+            const fSum = await dh.getFileHandle(base + '_summary.txt'); const flSum = await fSum.getFile();
+            if ((await flSum.text()).toLowerCase().includes(q)) found = true;
+          }
+
+          if (found) {
+            recordItems.push({ date: d, base, dh, audioName: findAudioInList(files, base), hasTxt: true, hasSum: files.includes(base + '_summary.txt') });
+          }
+        }
+      }
+      renderRecordList();
+    }
+    function resetSearch() { document.getElementById('searchInput').value = ''; searchActive = false; if (calSelectedDate) loadRecordsForDate(calSelectedDate); }
+
+    // ════════════════════════════════════════════════════════════
+    // RAG Chatbot
+    // ════════════════════════════════════════════════════════════
+    let chatCandidateItems = []; // Contains files found in search for chatting
+
+    async function loadChatbotRecords() {
+      if (!dirHandle) { showToast('폴더를 먼저 연결해 주세요.', 'err'); return; }
+      const q = document.getElementById('chatSearchInput').value.trim().toLowerCase();
+      const sDate = document.getElementById('chatStartDate').value;
+      const eDate = document.getElementById('chatEndDate').value;
+
+      chatCandidateItems = [];
+      const listDiv = document.getElementById('chatRecordList');
+      listDiv.innerHTML = '<div style="text-align:center; padding:20px; color:var(--accent);">스캔 중...<span class="spinner" style="border-top-color:var(--accent); margin-left:10px;"></span></div>';
+
+      try {
+        for (const d of Array.from(dateEntries).sort().reverse()) {
+          // Date Filter logic
+          if (sDate && d < sDate) continue;
+          if (eDate && d > eDate) continue;
+
+          const dh = await dirHandle.getDirectoryHandle(d);
+          const files = []; for await (const e of dh.values()) if (e.kind === 'file') files.push(e.name);
+          const txts = files.filter(f => f.endsWith('.txt') && !f.endsWith('_summary.txt'));
+
+          for (const t of txts) {
+            const base = t.replace('.txt', '');
+            let found = false;
+
+            if (!q) {
+              found = true;
+            } else {
+              if (d.includes(q) || base.includes(q)) found = true;
+              else {
+                const fTxt = await dh.getFileHandle(t); const flTxt = await fTxt.getFile();
+                if ((await flTxt.text()).toLowerCase().includes(q)) found = true;
+                else if (files.includes(base + '_summary.txt')) {
+                  const fSum = await dh.getFileHandle(base + '_summary.txt'); const flSum = await fSum.getFile();
+                  if ((await flSum.text()).toLowerCase().includes(q)) found = true;
+                }
+              }
+            }
+
+            if (found) {
+              chatCandidateItems.push({ date: d, base, dh, hasTxt: true, hasSum: files.includes(base + '_summary.txt') });
+            }
+          }
+        }
+
+        // Render
+        if (chatCandidateItems.length === 0) {
+          listDiv.innerHTML = '<div style="text-align:center; color:var(--txt-muted); padding:20px;">검색된 기록이 없습니다.</div>';
+          document.getElementById('chatRecordCount').textContent = `0개 검색됨`;
+          return;
+        }
+
+        listDiv.innerHTML = '';
+        chatCandidateItems.forEach((item, idx) => {
+          const label = document.createElement('label');
+          label.style.display = 'flex'; label.style.alignItems = 'center'; label.style.gap = '8px'; label.style.cursor = 'pointer';
+          label.innerHTML = `
+             <input type="checkbox" class="chat-rec-chk" value="${idx}" checked>
+             <span class="preview-target" data-idx="${idx}" style="flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="미리보기 불러오는 중...">
+               <b>${item.date.substring(5)}</b> ${item.base} 
+               <span style="font-size:0.7rem; color:var(--txt-muted);">[${item.hasSum ? 'S' : ''}${item.hasTxt ? 'T' : ''}]</span>
+             </span>
+           `;
+          const span = label.querySelector('.preview-target');
+          span.onmouseenter = async () => {
+             if (span.dataset.loaded) return;
+             span.dataset.loaded = 'true';
+             try {
+               let preview = '';
+               if (item.hasTxt) {
+                 const f = await item.dh.getFileHandle(item.base + '.txt'); const fl = await f.getFile();
+                 preview += "[원본] " + (await fl.text()).substring(0, 200) + "...\\n";
+               }
+               if (item.hasSum) {
+                 const f = await item.dh.getFileHandle(item.base + '_summary.txt'); const fl = await f.getFile();
+                 preview += "[요약] " + (await fl.text()).substring(0, 200) + "...";
+               }
+               span.title = preview.trim() || `${item.date} ${item.base}`;
+             } catch(e) { span.title = `${item.date} ${item.base}`; }
+          };
+          listDiv.appendChild(label);
+        });
+        document.getElementById('chatRecordCount').textContent = `${chatCandidateItems.length}개 검색됨 (전체 선택 완료)`;
+
+      } catch (e) { listDiv.innerHTML = `<div style="text-align:center; color:var(--err); padding:20px;">오류: ${e.message}</div>`; }
+    }
+
+    function selectAllChatRecords(check) {
+      document.querySelectorAll('.chat-rec-chk').forEach(cb => cb.checked = check);
+    }
+
+    function appendChatMessage(sender, text, isHtml = false) {
+      const msgs = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.style.maxWidth = '85%';
+      div.style.padding = '10px 15px';
+      div.style.fontSize = '0.85rem';
+      div.style.lineHeight = '1.5';
+      div.style.borderRadius = '12px';
+
+      if (sender === 'user') {
+        div.style.alignSelf = 'flex-end';
+        div.style.background = 'var(--accent)';
+        div.style.color = 'white';
+        div.style.borderBottomRightRadius = '0';
+        div.textContent = text;
+      } else {
+        div.style.alignSelf = 'flex-start';
+        div.style.background = 'var(--bg-card)';
+        div.style.border = '1px solid var(--bdr)';
+        div.style.color = 'var(--txt)';
+        div.style.borderBottomLeftRadius = '0';
+        div.classList.add('chat-md');
+        if (isHtml) {
+          div.innerHTML = text;
+        } else {
+          try {
+            if (typeof marked !== 'undefined') {
+              div.innerHTML = marked.parse(text);
+            } else {
+              div.innerHTML = text.replace(/\n/g, '<br>');
+            }
+          } catch(e) {
+            div.textContent = text;
+          }
+        }
+      }
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+      return div; // Return element so we can update it if needed
+    }
+
+    async function sendChatMessage() {
+      if (isBusy) return;
+
+      const input = document.getElementById('chatInput');
+      const query = input.value.trim();
+      const apiKey = localStorage.getItem('cvn_key');
+      const model = localStorage.getItem('cvn_mod') || 'gemini-3-flash-preview';
+
+      if (!apiKey) { showToast('API 키를 설정해주세요.', 'err'); return; }
+      if (!query) return;
+
+      // Collect contexts
+      const checks = document.querySelectorAll('.chat-rec-chk:checked');
+      if (checks.length === 0) { showToast('채팅에 참고할 분석 대상 기록을 먼저 선택해주세요.', 'err'); return; }
+
+      isBusy = true;
+      input.value = '';
+      appendChatMessage('user', query);
+
+      const loadingMsgBlock = appendChatMessage('ai', '<span class="spinner" style="border-top-color:var(--accent);"></span> 컨텍스트를 스캔하고 있습니다...', true);
+
+      try {
+        const typeEl = document.querySelector('input[name="chatContextType"]:checked');
+        const contextType = typeEl ? typeEl.value : 'summary';
+
+        let combinedContext = '';
+
+        for (const cb of checks) {
+          const item = chatCandidateItems[parseInt(cb.value)];
+          combinedContext += `\\n================================\\n[수업 날짜: ${item.date} / 식별자: ${item.base}]\\n`;
+          let added = false;
+
+          if ((contextType === 'summary' || contextType === 'both') && item.hasSum) {
+            const f = await item.dh.getFileHandle(item.base + '_summary.txt'); const fl = await f.getFile();
+            combinedContext += "[AI 수업 요약]\\n" + await fl.text() + "\\n";
+            added = true;
+          }
+          if ((contextType === 'txt' || contextType === 'both') && item.hasTxt) {
+            const f = await item.dh.getFileHandle(item.base + '.txt'); const fl = await f.getFile();
+            combinedContext += "[교사 발화 전사본]\\n" + await fl.text() + "\\n";
+            added = true;
+          }
+
+          if (!added) combinedContext += "(선택 옵션에 해당하는 텍스트 내용 없음)\\n";
+        }
+
+        const systemPrompt = `당신은 교사를 돕는 전문적이고 통찰력 있는 AI 수업 분석 어시스턴트입니다.\\n다음은 사용자가 선택한 자신의 과거 수업 기록(전사본 및 요약본) 데이터입니다.\\n이 데이터를 배경 지식으로 삼아, 이어지는 교사의 질문에 답변하십시오.\\n필요하다면 마크다운 형식으로 깔끔하게 정리하여 답변하십시오.\\n\\n[제공된 수업 기록 데이터 시작]\\n${combinedContext}\\n[제공된 수업 데이터 끝]`;
+
+        loadingMsgBlock.innerHTML = '<span class="spinner" style="border-top-color:var(--accent);"></span> 수집된 기록을 바탕으로 분석 중입니다...';
+
+        const b = {
+          contents: [{ role: "user", parts: [{ text: `${systemPrompt}\\n\\n선생님의 질문: ${query}` }] }],
+        };
+
+        const reqOpts = { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) };
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, reqOpts);
+
+        if (!res.ok) {
+          const errMsg = (await res.json()).error.message;
+          throw new Error(errMsg);
+        }
+
+        const data = await res.json();
+        const rawAnswers = data.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
+        let parsedHtml = '';
+        if (typeof marked !== 'undefined') {
+          parsedHtml = marked.parse(rawAnswers);
+        } else {
+          parsedHtml = rawAnswers.replace(/\\n/g, '<br>').replace(/\\*\\*(.*?)\\*\\*/g, '<b>$1</b>');
+        }
+        loadingMsgBlock.innerHTML = parsedHtml;
+        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+      } catch (e) {
+        loadingMsgBlock.innerHTML = `<span style="color:var(--err)">❌ AI 챗봇 오류: ${e.message}</span>`;
+      } finally {
+        isBusy = false;
+        input.focus();
+      }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // UI Helpers
+    // ════════════════════════════════════════════════════════════
+    function openSettings() {
+      document.getElementById('inputApiKey').value = localStorage.getItem('cvn_key') || '';
+      document.getElementById('inputModel').value = localStorage.getItem('cvn_mod') || 'gemini-3-flash-preview';
+      document.getElementById('modalSettings').classList.add('open');
+    }
+    function saveSettings() {
+      localStorage.setItem('cvn_key', document.getElementById('inputApiKey').value.trim());
+      localStorage.setItem('cvn_mod', document.getElementById('inputModel').value.trim());
+      closeModal('modalSettings'); showToast('설정 저장됨', 'ok');
+    }
+    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+    function switchMainTab(el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.main').forEach(m => m.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById('tab-' + el.dataset.id).classList.add('active');
+    }
+    function fmtDate(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+    function esc(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>'); }
+    function highlight(h, q) { if (!q) return h; return h.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'), '<mark>$1</mark>'); }
+    function showToast(m, t) { const c = document.getElementById('toasts'); const e = document.createElement('div'); e.className = `toast ${t}`; e.textContent = m; c.appendChild(e); setTimeout(() => { e.style.opacity = '0'; setTimeout(() => e.remove(), 300); }, 3000); }
+  </script>
+</body>
+
+</html>
